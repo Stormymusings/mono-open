@@ -1,0 +1,18 @@
+
+# https://taskfile.dev
+version: '3'
+
+includes:
+  docker:
+    taskfile: .taskfiles/DockerTasks.yml
+  dns:
+    taskfile: .taskfiles/DNSTasks.yml
+  devlocal:
+    taskfile: .taskfiles/DevLocalTasks.yml
+
+tasks:
+  default:
+    summary:
+      List all tasks with a description. use `--list-all` to see all tasks
+    cmds:
+      - cmd: task --list
