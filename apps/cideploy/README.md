@@ -13,9 +13,6 @@ future.
 
 ## Software & Tools
 
-Taskfile reads version information from `version.json` while building from
-`v1/build/Dockerfile`.
-
 __OpenTofu__
 
 Fork of Terraform by the Linux Foundation, used for provioning cloud resources
@@ -38,52 +35,91 @@ __DNSControl__
 IaC tooling for managing public & private DNS and registrars from
 version-controlled files in this repository.
 
-
-<br>
-
-## Building this image
-
-This image is built via Github Actions and stored as a package in this GitHub
-repository. CircleCI pulls this image and uses it for all CI/CD purposes.
-
-> GitHub Actions Workflow is set to only build the image if a file in this
-subdirectory `/apps/cideploy/**` is modified. To trigger a build of this image,
-it is recommended to manually update the version number in `version.json`.
-
-While it would be possible to implement an auto-incrementing version number
-bump process for this image, the added complexity is not desired. Manual version
-numbering is quite sufficient.
-
-__Versioning & Workflow__
-
-
-
-__Tags - latest & latest-devel__
-
-Build process builds & tags the tagged with the version number for the build
-type, defined in `version.json`. Also always tags this image with `:latest`
-for a `current` build, or `:latest-dev` for a `devel` build.
-
-
 <br>
 
 
-# Taskfiles
+# Building this image
 
+This image is built via Github Actions and stored as a package in this project's
+repository.  
+CircleCI pulls this image to use as the ephemeral execution environment for all
+CI/CD tooling listed above.
 
-To build the image locally, use the following tasks from the root level of this
-repository. Build type is set via environment variable.
+<br>
+
+## Taskfiles
+
+To build the image locally, execute the following task in the root directory of
+this repository.
 
 ```
-export CIDEPLOY_BUILD_TYPE=current
-task docker:cideploy:build
-
-export CIDEPLOY_BUILD_TYPE=devel
 task docker:cideploy:build
 ```
 
+> Build types of `current` and `devel` are available for this image and
+> controlled via environment variable.  
+> `export CIDEPLOY_BUILD_TYPE=devel`
+
 <br>
 
+## Versioning & Workflow
+
+While it would be possible to implement a version number auto-incrementing
+process for this image, the added complexity is not needed or desired. Manual
+version bumping is quite sufficient.
+
+
+### Version file
+
+The Taskfile reads version information from `version.json` while building using
+`v1/build/Dockerfile.`
+
+- For current builds, the image is tagged and pushed as both :latest and with
+its specific version. (e.g. `cideploy:1.0.0` and `cideploy:latest` )
+
+- For development builds, the image is tagged and pushed as :latest-dev as well
+as with its specific version. (e.g. `cideploy:1.0.0-dev` and
+`cideploy:latest-dev`)
+
+### Development workflow
+
+> Note that GitHub Actions only triggers this build process if a file in this subdirectory
+(`/apps/cideploy/**`) is modified regardless of branch, pull request, or other
+possible trigger. This includes manual dispatch.
+
+__Development build job__
+
+- Triggered on every push to a pull request targeting the main branch
+- Builds and pushes a tagged dev image
+
+__Production build job__
+
+- Triggered only when a pull request to the main branch is merged
+- Compares `next` and `current` version numbers in version.json to check for a
+version bump
+- Builds and pushes a new production image with the `next` version number
+- Updates the `current` version number in version.json with the new production
+image version
+- Commits and pushes the updated version.json back to main
+
+#### How to Work with the Image
+
+__1. Create a new branch__
+
+1. Create a new branch
+1. Bump the `next` version number in `version.json`
+1. Open a pull request
+
+__2. Development Cycle__
+
+1. Bump the `devel` version number in `version.json`
+1. Push commits to the pull request to trigger development builds
+
+__3. Merge to Main__
+
+1. Merge the pull request to trigger the production build
+
+<br>
 
 # Refs
 
@@ -91,7 +127,8 @@ task docker:cideploy:build
 1. [https://github.com/getsops/sops](https://github.com/getsops/sops)
 1. [https://docs.ansible.com/core.html](https://docs.ansible.com/core.html)
 1. [https://opentofu.org/](https://opentofu.org/)
+1. [https://dnscontrol.org/](https://dnscontrol.org/)
 1. [https://docs.github.com/en/actions](https://docs.github.com/en/actions)
-1. [CirclCI - cimg/base](https://circleci.com/developer/images/image/cimg/base)
 1. [https://circleci.com/](https://circleci.com/)
+1. [CirclCI - cimg/base](https://circleci.com/developer/images/image/cimg/base)
 

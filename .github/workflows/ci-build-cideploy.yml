@@ -14,9 +14,9 @@ on:
       - 'apps/cideploy/**'
 
 jobs:
-  build:
+  production-build:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true }}
 
     permissions:
       packages: write
@@ -77,17 +77,9 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Build and push stable image if version bumped
-        # if: steps.check_version_bump.outputs.version_bump == 'true'
+        if: steps.check_version_bump.outputs.version_bump == 'true'
         env:
           CIDEPLOY_BUILD_TYPE: "current"
-        run: |
-          task docker:cideploy-build -v
-          task docker:cideploy-tag -v
-          task docker:cideploy-push -v
-
-      - name: Build devel image
-        env:
-          CIDEPLOY_BUILD_TYPE: "devel"
         run: |
           task docker:cideploy-build -v
           task docker:cideploy-tag -v
@@ -102,3 +94,44 @@ jobs:
           git commit -m "Update current version in version.json"
           git push origin main
 
+  development-build:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+
+    permissions:
+      packages: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Create build cache directory
+        run: mkdir -p /tmp/.buildx-cache
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build devel image
+        env:
+          CIDEPLOY_BUILD_TYPE: "devel"
+        run: |
+          task docker:cideploy-build -v
+          task docker:cideploy-tag -v
+          task docker:cideploy-push -v
