@@ -79,12 +79,12 @@ tasks:
   # ---
   cideploy-local-task:
     summary:
-      Create an ephemeral `oc-cideploy` container to run tasks for this project.
-      Some limitations apply, namely any decryption or env vars provided via
+      Create an ephemeral `cideploy` container to run tasks for this project.
+      Some limitations apply, e.g. any decryption or env vars provided via
       CI tooling (CircleCI / GitHub Actions) will not be available.
     internal: true
     cmds:
-      - docker run -it -v ./:/home/circleci/project --rm oc-cideploy:{{.CIDEPLOY_TAG}} task {{.CIDEPLOY_TASK}}
+      - docker run -it -v ./:/home/circleci/project --rm cideploy:{{.CIDEPLOY_TAG}} task {{.CIDEPLOY_TASK}}
     requires:
       vars:
         - CIDEPLOY_TAG

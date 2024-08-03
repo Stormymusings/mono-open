@@ -1,0 +1,19 @@
+version: '3'
+
+includes:
+  dnscontrol:
+    dir: ../dnscontrol
+    taskfile: ../dnscontrol/Taskfile.yml
+
+tasks:
+  #####################################
+  ## CIDEPLOY | DNSControl Tasks
+  # ---
+  preview:
+    summary: "Preview changes to DNS"
+    cmds:
+      - task: dnscontrol:preview
+  push:
+    summary: "Preview changes to DNS"
+    cmds:
+      - task: dnscontrol:push
