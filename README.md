@@ -1,4 +1,4 @@
-# Mono Open - Demo Repo
+# Mono Open
 
 This repository is primarily for demonstration purposes and will grow
 over time as needed.
