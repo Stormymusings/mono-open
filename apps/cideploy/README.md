@@ -68,6 +68,7 @@ While it would be possible to implement a version number auto-incrementing
 process for this image, the added complexity is not needed or desired. Manual
 version bumping is quite sufficient.
 
+<br>
 
 ### Version file
 
@@ -81,7 +82,9 @@ its specific version. (e.g. `cideploy:1.0.0` and `cideploy:latest` )
 as with its specific version. (e.g. `cideploy:1.0.0-dev` and
 `cideploy:latest-dev`)
 
-### Development workflow
+<br>
+
+### CI Workflow
 
 > Note that GitHub Actions only triggers this build process if a file in this subdirectory
 (`/apps/cideploy/**`) is modified regardless of branch, pull request, or other
@@ -102,7 +105,9 @@ version bump
 image version
 - Commits and pushes the updated version.json back to main
 
-#### How to Work with the Image
+<br>
+
+### Development workflow
 
 __1. Create a new branch__
 
