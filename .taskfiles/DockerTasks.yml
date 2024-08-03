@@ -1,0 +1,33 @@
+version: '3'
+
+vars:
+  BUILDX_CACHE_DIR: "/tmp/.buildx-cache"
+  GITHUB_PACKAGE_REPOSITORY: "ghcr.io/stormymusings"
+
+includes:
+  cideploy:
+    taskfile: ../apps/cideploy/Taskfile.yml
+    dir: ../apps/cideploy
+
+tasks:
+  #####################################
+  # Custom CI environment for IaC Tooling
+  # ---
+  cideploy-build:
+    desc: Build image for 'cideploy'
+    summary:
+      Build the cideploy Docker image
+    cmds:
+      - task: cideploy:build
+
+  cideploy-tag:
+    summary:
+      Tag the cideploy Docker image (CI Only)
+    cmds:
+      - task: cideploy:tag
+
+  cideploy-push:
+    summary:
+      Push the cideploy Docker image (CI Only)
+    cmds:
+      - task: cideploy:push

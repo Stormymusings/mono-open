@@ -1,0 +1,108 @@
+version: '3'
+
+env:
+  CIDEPLOY_BUILD_TYPE:
+    sh: 'echo ${CIDEPLOY_BUILD_TYPE:-"devel"}'
+
+vars:
+  #####################################
+  ## Upstream variables
+  # ---
+  # Inherited from .taskfiles/DockerTasks.yml
+  CIDEPLOY_REPOSITORY: '{{.GITHUB_PACKAGE_REPOSITORY}}'
+  CACHE_DIR: "{{.BUILDX_CACHE_DIR}}"
+
+  #####################################
+  ## Local variables
+  # ---
+  BUILD_NAME: "cideploy"
+  BUILDX_INSTANCE: "cideploy"
+  VERSION_FILE: "apps/cideploy/version.json"
+
+  #####################################
+  ## Dynamic variables
+  # ---
+  CIDEPLOY_IMAGE_VERSION:
+    sh: jq -r '.image.{{.CIDEPLOY_BUILD_TYPE}}' {{.VERSION_FILE}}
+  BUILD_TAG: '{{.CIDEPLOY_IMAGE_VERSION}}'
+  PUSH_TAG: '{{.CIDEPLOY_IMAGE_VERSION}}'
+  PUSH_REPOSITORY: '{{.CIDEPLOY_REPOSITORY}}/{{.BUILD_NAME}}'
+
+  #####################################
+  ## Dockerfile - Dynamic variables
+  # ---
+  ANSIBLE_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["ansible-core"]' {{.VERSION_FILE}}
+  ANSIBLE_LINT_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["ansible-lint"]' {{.VERSION_FILE}}
+  MITOGEN_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["mitogen"]' {{.VERSION_FILE}}
+  JMESPATH_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["jmespath"]' {{.VERSION_FILE}}
+  PYWINRM_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["pywinrm"]' {{.VERSION_FILE}}
+  TASK_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["go-task"]' {{.VERSION_FILE}}
+  SOPS_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["sops"]' {{.VERSION_FILE}}
+  DNSCONTROL_VERSION:
+    sh: jq -r '.build.{{.CIDEPLOY_BUILD_TYPE}}.dockerfile["dnscontrol"]' {{.VERSION_FILE}}
+
+tasks:
+  build:
+    summary: "Build the Docker image for the IaC deploy container"
+    dir: .
+    cmds:
+      - mkdir -p {{.CACHE_DIR}}
+      - |
+        if ! docker buildx inspect {{.BUILDX_INSTANCE}} >/dev/null 2>&1; then
+          docker buildx create --name {{.BUILDX_INSTANCE}} --use
+        else
+          docker buildx use {{.BUILDX_INSTANCE}}
+        fi
+      - ls -l {{.CACHE_DIR}}
+      - |
+        docker buildx build \
+        --cache-to type=local,dest={{.CACHE_DIR}},mode=max \
+        --cache-from type=local,src={{.CACHE_DIR}} \
+        --tag {{.BUILD_NAME}}:{{.BUILD_TAG}} \
+        -f v1/build/Dockerfile . \
+        --load \
+        --build-arg ANSIBLE_VERSION={{.ANSIBLE_VERSION}} \
+        --build-arg ANSIBLE_LINT_VERSION={{.ANSIBLE_LINT_VERSION}} \
+        --build-arg MITOGEN_VERSION={{.MITOGEN_VERSION}} \
+        --build-arg JMESPATH_VERSION={{.JMESPATH_VERSION}} \
+        --build-arg PYWINRM_VERSION={{.PYWINRM_VERSION}} \
+        --build-arg TASK_VERSION={{.TASK_VERSION}} \
+        --build-arg SOPS_VERSION={{.SOPS_VERSION}} \
+        --build-arg DNSCONTROL_VERSION={{.DNSCONTROL_VERSION}}
+      - |
+        if [ "{{.CIDEPLOY_BUILD_TYPE}}" = "current" ]; then
+          docker tag {{.BUILD_NAME}}:{{.BUILD_TAG}} {{.BUILD_NAME}}:latest
+        elif [ "{{.CIDEPLOY_BUILD_TYPE}}" = "devel" ]; then
+          docker tag {{.BUILD_NAME}}:{{.BUILD_TAG}} {{.BUILD_NAME}}:latest-dev
+        fi
+
+  tag:
+    summary: "Tag the Docker image for the IaC deploy container"
+    dir: .
+    cmds:
+      - docker tag {{.BUILD_NAME}}:{{.BUILD_TAG}} {{.PUSH_REPOSITORY}}:{{.PUSH_TAG}}
+      - |
+        if [ "{{.CIDEPLOY_BUILD_TYPE}}" = "current" ]; then
+          docker tag {{.BUILD_NAME}}:{{.BUILD_TAG}} {{.PUSH_REPOSITORY}}:latest
+        elif [ "{{.CIDEPLOY_BUILD_TYPE}}" = "devel" ]; then
+          docker tag {{.BUILD_NAME}}:{{.BUILD_TAG}} {{.PUSH_REPOSITORY}}:latest-dev
+        fi
+
+  push:
+    summary: "Push the Docker image for the IaC deploy container"
+    dir: .
+    cmds:
+      - docker push {{.PUSH_REPOSITORY}}:{{.PUSH_TAG}}
+      - |
+        if [ "{{.CIDEPLOY_BUILD_TYPE}}" = "current" ]; then
+          docker push {{.PUSH_REPOSITORY}}:latest
+        elif [ "{{.CIDEPLOY_BUILD_TYPE}}" = "devel" ]; then
+          docker push {{.PUSH_REPOSITORY}}:latest-dev
+        fi

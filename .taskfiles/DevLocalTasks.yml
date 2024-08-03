@@ -1,0 +1,91 @@
+version: '3'
+
+env:
+  CIDEPLOY_TAG:
+    sh: 'echo ${CIDEPLOY_TAG}'
+
+includes:
+  dnscontrol:
+    dir: ../dnscontrol
+    taskfile: ../dnscontrol/Taskfile.yml
+
+tasks:
+  #####################################
+  ## Dev Workstation Cleaning Tasks
+  # ---
+  clean:
+    desc: "Prune docker environment. Preserve build cache on disk."
+    cmds:
+      - task: clean-docker
+
+  clean-docker:
+    summary:
+      Remove buildx instances and prune docker
+    cmds:
+      - task: buildx-purge-instances
+      - task: buildx-prune
+      - task: docker-prune
+
+  ## Clean Buildx
+  # ---
+  buildx-purge-instances:
+    summary:
+      Stop & delete all buildx builder instances, if any exist
+    cmds:
+      - cmd: docker buildx stop cideploy
+        ignore_error: true
+      - cmd: docker buildx rm cideploy
+        ignore_error: true
+
+  buildx-prune:
+    summary:
+      Purge buildx cache (./tmp/.buildx-cache)
+    cmds:
+      - docker buildx prune --all --force
+
+  ## Clean Docker
+  # ---
+  docker-prune:
+    summary: |
+      1. Delete all docker volumes
+      2. Delete all docker images
+    cmds:
+      - docker volume prune --all --force
+      - docker image prune --all --force
+
+  #####################################
+  ## CIDEPLOY TASKS
+  # ---
+
+  # DNSControl
+  dnscontrol-preview:
+    desc: "circleci: task dns:preview"
+    summary: Preview changes to DNS
+    cmds:
+      - task: cideploy-local-task
+        vars:
+          CIDEPLOY_TASK: dns:preview
+
+  dnscontrol-push:
+    desc: "circleci: task dns:push"
+    summary: Push changes to DNS
+    cmds:
+      - task: cideploy-local-task
+        vars:
+          CIDEPLOY_TASK: dns:push
+
+  #####################################
+  ## INTERNAL TASKS
+  # ---
+  cideploy-local-task:
+    summary:
+      Create an ephemeral `oc-cideploy` container to run tasks for this project.
+      Some limitations apply, namely any decryption or env vars provided via
+      CI tooling (CircleCI / GitHub Actions) will not be available.
+    internal: true
+    cmds:
+      - docker run -it -v ./:/home/circleci/project --rm oc-cideploy:{{.CIDEPLOY_TAG}} task {{.CIDEPLOY_TASK}}
+    requires:
+      vars:
+        - CIDEPLOY_TAG
+        - CIDEPLOY_TASK
