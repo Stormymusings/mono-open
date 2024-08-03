@@ -1,0 +1,33 @@
+#######################
+# Environment files.
+# ---
+.envrc
+env/
+/.env*
+!/.env.example
+
+
+#######################
+# AGE key(s)
+# ---
+keys.txt
+
+
+#######################
+## Ansible
+# ---
+*.retry
+galaxy_collect'ions/
+collections/
+ansible/.DS_Store
+.DS_Store
+
+
+#######################
+## OpenTofu (Terraform)
+# ---
+
+#######################
+## DNSControl
+# ---
+# dnscontrol/*/creds.json
