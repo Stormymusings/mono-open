@@ -1,0 +1,16 @@
+version: '3'
+
+vars:
+  VERSION: 'v1'
+
+tasks:
+  preview:
+    summary: "Execute dnscontrol preview"
+    dir: '{{.VERSION}}'
+    cmds:
+      - dnscontrol preview
+  push:
+    summary: "Execute dnscontrol preview"
+    dir: '{{.VERSION}}'
+    cmds:
+      - dnscontrol push

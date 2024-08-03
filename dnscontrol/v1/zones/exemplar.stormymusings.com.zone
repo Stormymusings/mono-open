@@ -1,0 +1,5 @@
+$TTL 300
+; generated with dnscontrol 2024-08-03T07:44:05Z
+@                IN SOA   DEFAULT_NOT_SET. DEFAULT_NOT_SET. 2024080300 3600 600 604800 1440
+                 IN A     192.0.2.1
+srv1             IN A     192.0.2.2
