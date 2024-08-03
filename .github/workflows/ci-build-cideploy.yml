@@ -1,0 +1,104 @@
+name: Build & Push CIDEPLOY
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/cideploy/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/cideploy/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    permissions:
+      packages: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Get current version
+        id: get_current_version
+        run: echo $(jq -r '.image.current' apps/cideploy/version.json)
+
+      - name: Get next version
+        id: get_next_version
+        run: echo $(jq -r '.image.next' apps/cideploy/version.json)
+
+      - name: Check for version bump
+        id: check_version_bump
+        run: |
+          NEXT_VERSION=$(jq -r '.image.next' apps/cideploy/version.json)
+          CURRENT_VERSION=$(jq -r '.image.current' apps/cideploy/version.json)
+          echo "::set-output name=version_bump::$([[ "$NEXT_VERSION" != "$CURRENT_VERSION" ]] && echo true || echo false)"
+
+      - name: Update current version in version.json
+        if: steps.check_version_bump.outputs.version_bump == 'true'
+        run: |
+          NEXT_VERSION=$(jq -r '.image.next' apps/cideploy/version.json)
+          jq '.image.current = $NEXT_VERSION' --arg NEXT_VERSION "$NEXT_VERSION" apps/cideploy/version.json > apps/cideploy/version_tmp.json
+          mv apps/cideploy/version_tmp.json apps/cideploy/version.json
+
+      - name: Set up Docker Buildx
+        if: steps.check_version_bump.outputs.version_bump == 'true'
+        uses: docker/setup-buildx-action@v2
+
+      - name: Create build cache directory
+        if: steps.check_version_bump.outputs.version_bump == 'true'
+        run: mkdir -p /tmp/.buildx-cache
+
+      - name: Cache Docker layers
+        if: steps.check_version_bump.outputs.version_bump == 'true'
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push stable image if version bumped
+        if: steps.check_version_bump.outputs.version_bump == 'true'
+        env:
+          CIDEPLOY_BUILD_TYPE: "current"
+        run: |
+          task docker:cideploy-build -v
+          task docker:cideploy-tag -v
+          task docker:cideploy-push -v
+
+      - name: Build devel image
+        env:
+          CIDEPLOY_BUILD_TYPE: "devel"
+        run: |
+          task docker:cideploy-build -v
+          task docker:cideploy-tag -v
+          task docker:cideploy-push -v
+
+      - name: Commit and push updated version.json
+        if: steps.check_version_bump.outputs.version_bump == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add apps/cideploy/version.json
+          git commit -m "Update current version in version.json"
+          git push origin main
+
